@@ -4,9 +4,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.SubMenu;
+import android.view.View;
+import android.widget.Button;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.GoogleMap;
@@ -16,76 +16,95 @@ import com.google.android.gms.maps.model.GroundOverlayOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.CameraUpdateFactory;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
     GoogleMap gMap;
     MapFragment mapFrag;
-    GroundOverlayOptions videoMark;
+    Button btnPrev, btnNext;
+    GroundOverlayOptions placeMark;
+    List<String> lines = new ArrayList<>();
+    int placeCount = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        setTitle("구글지도 활용");
+        setTitle("경기도 으뜸 맛집");
 
         mapFrag = (MapFragment) getFragmentManager().findFragmentById(R.id.map);
         mapFrag.getMapAsync(this);
 
+        btnPrev = (Button) findViewById(R.id.btnPrev);
+        btnNext = (Button) findViewById(R.id.btnNext);
+
+        readCSV();
+
+        btnPrev.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String line = lines.get(placeCount--);
+                if (placeCount < 0)
+                    placeCount = lines.size()-1;
+                String[] tokens = line.split(",");
+                double lat = Double.parseDouble(tokens[0]);
+                double lon = Double.parseDouble(tokens[1]);
+                String restName = tokens[2];
+
+                LatLng point;
+                point = new LatLng(lat, lon);
+                gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(point, 13));
+                placeMark = new GroundOverlayOptions().image(BitmapDescriptorFactory.fromResource(R.drawable.food)).position(point, 500f, 500f);
+                gMap.addGroundOverlay(placeMark);
+                Toast.makeText(getApplicationContext(), restName, Toast.LENGTH_LONG).show();
+            }
+        });
+
+        btnNext.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String line = lines.get(placeCount++);
+                if (placeCount > lines.size()-1)
+                    placeCount = 0;
+                String[] tokens = line.split(",");
+                double lat = Double.parseDouble(tokens[0]);
+                double lon = Double.parseDouble(tokens[1]);
+                String restName = tokens[2];
+
+                LatLng point;
+                point = new LatLng(lat, lon);
+                gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(point, 13));
+                placeMark = new GroundOverlayOptions().image(BitmapDescriptorFactory.fromResource(R.drawable.food)).position(point, 500f, 500f);
+                gMap.addGroundOverlay(placeMark);
+                Toast.makeText(getApplicationContext(), restName, Toast.LENGTH_LONG).show();
+            }
+        });
+
     }
+
+    public void readCSV() {
+        InputStream inputStream = getResources().openRawResource(R.raw.good_place);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+
+        try {
+            String line;
+            line = reader.readLine();
+            while ((line = reader.readLine()) != null) {
+                lines.add(line);
+            }
+            reader.close();
+        } catch (Exception e) {}
+    }
+
     @Override
     public void onMapReady(GoogleMap map) {
         gMap = map;
-        gMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
+        gMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(37.568256, 126.897240), 13));
         gMap.getUiSettings().setZoomControlsEnabled(true);
-        gMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
-            @Override
-            public void onMapClick(@NonNull LatLng point) {
-                videoMark = new GroundOverlayOptions().image(
-                        BitmapDescriptorFactory.fromResource(R.drawable.presence_video_busy)).position(point, 400f, 400f);
-                gMap.addGroundOverlay(videoMark);
-            }
-        });
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        super.onCreateOptionsMenu(menu);
-        menu.add(0, 1, 0, "위성지도");
-        menu.add(0, 2, 0, "일반지도");
-
-        // 3번을 서브메뉴로 변경
-        SubMenu subMenu = menu.addSubMenu(0, 3, 0, "유명맛집 바로가기");
-        subMenu.add(0, 31, 0, "제주도 갈치조림");
-        subMenu.add(0, 32, 0, "사당 이자카야");
-        subMenu.add(0, 33, 0, "신림 이탈리안");
-        // 원하는 장소 계속 추가 가능
-
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        switch (item.getItemId()) {
-            case 1:
-                gMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
-                return true;
-            case 2:
-                gMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
-                return true;
-
-            case 31:
-                gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                        new LatLng(33.488669, 126.492265), 13));
-                return true;
-            case 32:
-                gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                        new LatLng(37.480746, 126.980893), 16));
-                return true;
-            case 33:
-                gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                        new LatLng(37.477868, 126.958887), 16));
-                return true;
-        }
-        return false;
     }
 }
